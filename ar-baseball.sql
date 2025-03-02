@@ -38,7 +38,44 @@ GROUP BY yearid, position_group;
 
 -- 3. Find the average number of strikeouts per game by decade since 1920. Round the numbers you report to 2 decimal places. Do the same for home runs per game. Do you see any trends? (Hint: For this question, you might find it helpful to look at the **generate_series** function (https://www.postgresql.org/docs/9.1/functions-srf.html). If you want to see an example of this in action, check out this DataCamp video: https://campus.datacamp.com/courses/exploratory-data-analysis-in-sql/summarizing-and-aggregating-numeric-data?ex=6)
 
+
+SELECT *
+FROM teams;
+
+-- avg strikeouts per game by decade since 1920
+SELECT 
+    trunc(yearid, -1)||'s' AS decade,
+    AVG(g) AS avg_games_played,
+    AVG(so) AS avg_strikeouts_pitching,
+    ROUND(SUM(so)::NUMERIC / (SUM(g)::NUMERIC), 2) AS avg_so_per_game
+FROM teams
+WHERE yearid >= 1920
+GROUP BY decade
+ORDER BY decade;
+
+-- avg hr per game by decade since 1920
+SELECT 
+    trunc(yearid, -1) ||'s' AS decade,
+    AVG(g) AS avg_games_played,
+    AVG(hr) AS avg_hr_per_year,
+    ROUND(SUM(hr)::NUMERIC / (SUM(g)::NUMERIC), 2) AS avg_hr_per_game
+FROM teams
+WHERE yearid >= 1920
+GROUP BY decade
+ORDER BY decade;
+
+
+
 -- 4. Find the player who had the most success stealing bases in 2016, where __success__ is measured as the percentage of stolen base attempts which are successful. (A stolen base attempt results either in a stolen base or being caught stealing.) Consider only players who attempted _at least_ 20 stolen bases. Report the players' names, number of stolen bases, number of attempts, and stolen base percentage.
+
+
+
+
+
+
+
+
+
 
 -- 5. From 1970 to 2016, what is the largest number of wins for a team that did not win the world series? What is the smallest number of wins for a team that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion; determine why this is the case. Then redo your query, excluding the problem year. How often from 1970 to 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
 
