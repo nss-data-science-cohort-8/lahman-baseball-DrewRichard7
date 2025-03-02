@@ -5,7 +5,36 @@
 
 -- 1. Find all players in the database who played at Vanderbilt University. Create a list showing each player's first and last names as well as the total salary they earned in the major leagues. Sort this list in descending order by the total salary earned. Which Vanderbilt player earned the most money in the majors?
 
+SELECT sc.schoolid, sc.schoolname, p.playerid, p.namefirst, p.namelast, SUM(sa.salary) AS salary
+FROM people AS p
+INNER JOIN collegeplaying AS c
+USING(playerid)
+INNER JOIN schools AS sc
+USING(schoolid)
+INNER JOIN salaries AS sa
+USING(playerid)
+WHERE LOWER(schoolname) LIKE  '%vand%'
+GROUP BY p.playerid, sc.schoolname, sc.schoolid, p.namefirst, p.namelast
+ORDER BY sc.schoolname, salary DESC
+LIMIT 1;
+-- David Price earned $245553888 in the majors
+
 -- 2. Using the fielding table, group players into three groups based on their position: label players with position OF as "Outfield", those with position "SS", "1B", "2B", and "3B" as "Infield", and those with position "P" or "C" as "Battery". Determine the number of putouts made by each of these three groups in 2016.
+
+SELECT *
+FROM fielding;
+
+SELECT 
+    yearid,
+    CASE WHEN LOWER(pos) IN ('ss', '1b', '2b', '3b') THEN 'infield'
+        WHEN LOWER(pos) = 'of' THEN 'outfield'
+        WHEN LOWER(pos) IN ('p', 'c') THEN 'battery' ELSE NULL END AS position_group, 
+        SUM(po) AS putouts
+FROM fielding
+WHERE yearid = 2016
+GROUP BY yearid, position_group;
+
+
 
 -- 3. Find the average number of strikeouts per game by decade since 1920. Round the numbers you report to 2 decimal places. Do the same for home runs per game. Do you see any trends? (Hint: For this question, you might find it helpful to look at the **generate_series** function (https://www.postgresql.org/docs/9.1/functions-srf.html). If you want to see an example of this in action, check out this DataCamp video: https://campus.datacamp.com/courses/exploratory-data-analysis-in-sql/summarizing-and-aggregating-numeric-data?ex=6)
 
