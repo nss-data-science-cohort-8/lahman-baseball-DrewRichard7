@@ -84,9 +84,6 @@ GROUP BY name, sb, cs
 ORDER BY sb_pct DESC
 LIMIT 1;
 
-SELECT *
-FROM people;
-
 
 
 
