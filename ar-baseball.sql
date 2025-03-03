@@ -207,12 +207,61 @@ LIMIT 1;
 -- Zack Greinke was the least efficient at 0.0000048768 strikeouts per dollar 
 
 
-
-
-
-
-
 -- 8. Find all players who have had at least 3000 career hits. Report those players' names, total number of hits, and the year they were inducted into the hall of fame (If they were not inducted into the hall of fame, put a null in that column.) Note that a player being inducted into the hall of fame is indicated by a 'Y' in the **inducted** column of the halloffame table.
+
+SELECT 
+    namefirst ||' '|| namelast AS player, 
+    SUM(h) AS career_hits,
+    CASE 
+        WHEN playerid IN (
+            SELECT DISTINCT playerid
+            FROM halloffame 
+            WHERE inducted = 'Y'
+        ) THEN fame.yearid
+        ELSE NULL END AS hof_year
+FROM batting AS b
+INNER JOIN people AS p
+    USING(playerid)
+INNER JOIN halloffame AS fame
+    USING(playerid)
+GROUP BY player, b.playerid, fame.yearid
+HAVING SUM(h) >= 3000
+ORDER BY career_hits DESC;
+
+
+SELECT playerid, yearid, inducted 
+FROM halloffame 
+WHERE inducted = 'Y';
+SELECT *
+FROM batting;
+
+SELECT b.playerid, hof.yearid, inducted, SUM(h) AS career_hits
+FROM batting AS b
+INNER JOIN halloffame AS hof
+    USING(playerid)
+GROUP BY 
+    b.playerid, hof.yearid, inducted
+HAVING SUM(h)>= 3000
+ORDER BY career_hits DESC;
+
+SELECT playerid, namefirst||' '||namelast AS name, SUM(h) AS career_hits
+FROM batting AS b
+LEFT JOIN people AS p
+    USING(playerid)
+GROUP BY playerid, name
+HAVING SUM(h) > 3000
+ORDER BY career_hits DESC;
+
+
+
+/* filter HOF down to names for inducted = 'Y'
+if name of hits >3000 in filter_hof, then fame.yearid
+ELSE null 
+
+fame.playerid, fame.yearid, fame.inducted
+
+
+*/
 
 -- 9. Find all players who had at least 1,000 hits for two different teams. Report those players' full names.
 
