@@ -184,10 +184,33 @@ WHERE am.awardid = 'TSN Manager of the Year'
 
 
 
-
-
-
 -- 7. Which pitcher was the least efficient in 2016 in terms of salary / strikeouts? Only consider pitchers who started at least 10 games (across all teams). Note that pitchers often play for more than one team in a season, so be sure that you are counting all stats for each player.
+
+SELECT 
+    namefirst ||' ' || namelast AS name, 
+    SUM(salary) AS salary,
+    SUM(so) AS strikeouts,
+    SUM(gs) AS games_started,
+    ROUND((SUM(so::NUMERIC) / SUM(salary::NUMERIC)), 10) AS so_per_$
+FROM salaries AS s
+INNER JOIN pitching AS pt
+    USING(playerid)
+INNER JOIN people as p
+    USING(playerid)
+WHERE s.yearid = 2016 
+    AND gs >= 10
+GROUP BY    
+   name 
+ORDER BY 
+    so_per_$
+LIMIT 1;
+-- Zack Greinke was the least efficient at 0.0000048768 strikeouts per dollar 
+
+
+
+
+
+
 
 -- 8. Find all players who have had at least 3000 career hits. Report those players' names, total number of hits, and the year they were inducted into the hall of fame (If they were not inducted into the hall of fame, put a null in that column.) Note that a player being inducted into the hall of fame is indicated by a 'Y' in the **inducted** column of the halloffame table.
 
