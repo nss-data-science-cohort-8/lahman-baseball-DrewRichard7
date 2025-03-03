@@ -90,6 +90,36 @@ LIMIT 1;
 
 -- 5. From 1970 to 2016, what is the largest number of wins for a team that did not win the world series? What is the smallest number of wins for a team that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion; determine why this is the case. Then redo your query, excluding the problem year. How often from 1970 to 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
 
+-- most wins, no world series
+SELECT yearid, name, w, l, wswin 
+FROM teams
+WHERE yearid BETWEEN 1970 AND 2016
+    AND wswin = 'N'
+ORDER BY w DESC
+LIMIT 1;
+-- 2001 Mariners: 116 W 
+
+
+ -- least wins, world series
+SELECT yearid, name, w, l, wswin 
+FROM teams
+WHERE yearid BETWEEN 1970 AND 2016
+    AND wswin = 'Y'
+ORDER BY w;
+-- 1981 Dodgers: 63 W
+
+
+-- 1981 players strike, exclude 1981
+SELECT yearid, name, w, l, wswin 
+FROM teams
+WHERE yearid BETWEEN 1970 AND 2016
+    AND wswin = 'Y'
+    AND yearid <> 1981
+ORDER BY w
+LIMIT 1;
+-- 2006 Cards: 83 W
+
+
 -- 6. Which managers have won the TSN Manager of the Year award in both the National League (NL) and the American League (AL)? Give their full name and the teams that they were managing when they won the award.
 
 -- 7. Which pitcher was the least efficient in 2016 in terms of salary / strikeouts? Only consider pitchers who started at least 10 games (across all teams). Note that pitchers often play for more than one team in a season, so be sure that you are counting all stats for each player.
