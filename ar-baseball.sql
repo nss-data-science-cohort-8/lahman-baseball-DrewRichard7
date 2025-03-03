@@ -68,10 +68,24 @@ ORDER BY decade;
 
 -- 4. Find the player who had the most success stealing bases in 2016, where __success__ is measured as the percentage of stolen base attempts which are successful. (A stolen base attempt results either in a stolen base or being caught stealing.) Consider only players who attempted _at least_ 20 stolen bases. Report the players' names, number of stolen bases, number of attempts, and stolen base percentage.
 
+-- name, sb, att, sb_pct 
 
+SELECT 
+    namefirst || ' ' || namelast AS name, 
+    sb, 
+    cs,
+    sb + cs AS att,
+    ROUND((sb::NUMERIC / (sb::NUMERIC + cs::NUMERIC)) * 100, 2) AS sb_pct
+FROM batting AS b
+INNER JOIN people AS p
+USING (playerid)
+WHERE yearid = 2016 AND sb + cs >=20
+GROUP BY name, sb, cs
+ORDER BY sb_pct DESC
+LIMIT 1;
 
-
-
+SELECT *
+FROM people;
 
 
 
