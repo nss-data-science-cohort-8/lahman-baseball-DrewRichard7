@@ -9,14 +9,11 @@ SELECT
     p.namefirst,
     p.namelast,
     SUM(sa.salary) AS salary
-FROM
-    people AS p
+FROM people AS p
     INNER JOIN collegeplaying AS c USING (playerid)
     INNER JOIN schools AS sc USING (schoolid)
     INNER JOIN salaries AS sa USING (playerid)
-WHERE
-    LOWER(schoolname)
-    LIKE '%vand%'
+WHERE LOWER(schoolname) LIKE '%vand%'
 GROUP BY
     p.playerid,
     sc.schoolname,
@@ -30,10 +27,8 @@ LIMIT 1;
 
 -- David Price earned $245553888 in the majors
 -- 2. Using the fielding table, group players into three groups based on their position: label players with position OF as "Outfield", those with position "SS", "1B", "2B", and "3B" as "Infield", and those with position "P" or "C" as "Battery". Determine the number of putouts made by each of these three groups in 2016.
-SELECT
-    *
-FROM
-    fielding;
+SELECT *
+FROM fielding;
 
 SELECT
     yearid,
@@ -47,19 +42,13 @@ SELECT
         NULL
     END AS position_group,
     SUM(po) AS putouts
-FROM
-    fielding
-WHERE
-    yearid = 2016
-GROUP BY
-    yearid,
-    position_group;
+FROM fielding
+WHERE yearid = 2016
+GROUP BY yearid, position_group;
 
 -- 3. Find the average number of strikeouts per game by decade since 1920. Round the numbers you report to 2 decimal places. Do the same for home runs per game. Do you see any trends? (Hint: For this question, you might find it helpful to look at the **generate_series** function (https://www.postgresql.org/docs/9.1/functions-srf.html). If you want to see an example of this in action, check out this DataCamp video: https://campus.datacamp.com/courses/exploratory-data-analysis-in-sql/summarizing-and-aggregating-numeric-data?ex=6)
-SELECT
-    *
-FROM
-    teams;
+SELECT *
+FROM teams;
 
 -- avg strikeouts per game by decade since 1920
 SELECT
@@ -67,14 +56,10 @@ SELECT
     AVG(g) AS avg_games_played,
     AVG(so) AS avg_strikeouts_pitching,
     ROUND(SUM(so)::numeric /(SUM(g)::numeric), 2) AS avg_so_per_game
-FROM
-    teams
-WHERE
-    yearid >= 1920
-GROUP BY
-    decade
-ORDER BY
-    decade;
+FROM teams
+WHERE yearid >= 1920
+GROUP BY decade
+ORDER BY decade;
 
 -- avg hr per game by decade since 1920
 SELECT
@@ -82,16 +67,13 @@ SELECT
     AVG(g) AS avg_games_played,
     AVG(hr) AS avg_hr_per_year,
     ROUND(SUM(hr)::numeric /(SUM(g)::numeric), 2) AS avg_hr_per_game
-FROM
-    teams
-WHERE
-    yearid >= 1920
-GROUP BY
-    decade
-ORDER BY
-    decade;
+FROM teams
+WHERE yearid >= 1920
+GROUP BY decade
+ORDER BY decade;
 
 -- 4. Find the player who had the most success stealing bases in 2016, where __success__ is measured as the percentage of stolen base attempts which are successful. (A stolen base attempt results either in a stolen base or being caught stealing.) Consider only players who attempted _at least_ 20 stolen bases. Report the players' names, number of stolen bases, number of attempts, and stolen base percentage.
+
 -- name, sb, att, sb_pct
 SELECT
     namefirst || ' ' || namelast AS name,
@@ -99,72 +81,47 @@ SELECT
     cs,
     sb + cs AS att,
     ROUND((sb::numeric /(sb::numeric + cs::numeric)) * 100, 2) AS sb_pct
-FROM
-    batting AS b
+FROM batting AS b
     INNER JOIN people AS p USING (playerid)
-WHERE
-    yearid = 2016
+WHERE yearid = 2016
     AND sb + cs >= 20
-GROUP BY
-    name,
-    sb,
-    cs
-ORDER BY
-    sb_pct DESC
+GROUP BY name, sb, cs
+ORDER BY sb_pct DESC
 LIMIT 1;
 
 -- 5. From 1970 to 2016, what is the largest number of wins for a team that did not win the world series? What is the smallest number of wins for a team that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion; determine why this is the case. Then redo your query, excluding the problem year. How often from 1970 to 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
--- most wins, no world series
-SELECT
-    yearid,
-    name,
-    w,
-    l,
-    wswin
-FROM
-    teams
-WHERE
-    yearid BETWEEN 1970 AND 2016
-    AND wswin = 'N'
-ORDER BY
-    w DESC
-LIMIT 1;
 
+-- most wins, no world series
 -- 2001 Mariners: 116 W
 -- least wins, world series
-SELECT
-    yearid,
-    name,
-    w,
-    l,
-    wswin
-FROM
-    teams
-WHERE
-    yearid BETWEEN 1970 AND 2016
-    AND wswin = 'Y'
-ORDER BY
-    w;
+SELECT yearid, name, w, l, wswin
+FROM teams
+WHERE yearid BETWEEN 1970 AND 2016
+    AND wswin = 'N'
+ORDER BY w DESC
+LIMIT 1;
+
 
 -- 1981 Dodgers: 63 W
 -- 1981 players strike, exclude 1981
-SELECT
-    yearid,
-    name,
-    w,
-    l,
-    wswin
-FROM
-    teams
-WHERE
-    yearid BETWEEN 1970 AND 2016
+SELECT yearid, name, w, l, wswin
+FROM teams
+WHERE yearid BETWEEN 1970 AND 2016
     AND wswin = 'Y'
-    AND yearid <> 1981
-ORDER BY
-    w
-LIMIT 1;
+ORDER BY w;
+
 
 -- 2006 Cards: 83 W
+SELECT yearid, name, w, l, wswin
+FROM teams
+WHERE yearid BETWEEN 1970 AND 2016
+    AND wswin = 'Y'
+    AND yearid <> 1981
+ORDER BY w
+LIMIT 1;
+
+
+
 -- 6. Which managers have won the TSN Manager of the Year award in both the National League (NL) and the American League (AL)? Give their full name and the teams that they were managing when they won the award.
 -- tables to join:
 -- teams, managers, people, awardsmanagers
@@ -175,8 +132,7 @@ SELECT
     awardid,
     am.lgid,
     t.name AS teamname
-FROM
-    awardsmanagers AS am
+FROM awardsmanagers AS am
     LEFT JOIN people AS p USING (playerid)
     LEFT JOIN managers AS m USING (playerid, yearid)
     LEFT JOIN teams AS t USING (teamid, yearid)
@@ -184,31 +140,21 @@ WHERE
     am.lgid <> 'ML'
     AND awardid = 'TSN Manager of the Year'
     AND playerid IN (
-        SELECT
-            playerid
-        FROM
-            awardsmanagers
-        WHERE
-            awardid = 'TSN Manager of the Year'
+        SELECT playerid
+        FROM awardsmanagers
+        WHERE awardid = 'TSN Manager of the Year'
             AND lgid <> 'ML'
-        GROUP BY
-            playerid
-        HAVING
-            COUNT(DISTINCT lgid) = 2);
+        GROUP BY playerid
+        HAVING COUNT(DISTINCT lgid) = 2);
 
 -- more efficient way i think
 WITH multi_league_winners AS (
-    SELECT
-        playerid
-    FROM
-        awardsmanagers
-    WHERE
-        awardid = 'TSN Manager of the Year'
+    SELECT playerid
+    FROM awardsmanagers
+    WHERE awardid = 'TSN Manager of the Year'
         AND lgid IN ('AL', 'NL')
-    GROUP BY
-        playerid
-    HAVING
-        COUNT(DISTINCT lgid) = 2) -- prefiltering out minor leagues and other awards
+    GROUP BY playerid
+    HAVING COUNT(DISTINCT lgid) = 2)
         SELECT
             am.playerid,
             p.namefirst || ' ' || p.namelast AS name,
@@ -216,8 +162,7 @@ WITH multi_league_winners AS (
             am.awardid,
             am.lgid,
             t.name AS teamname
-        FROM
-            awardsmanagers AS am
+        FROM awardsmanagers AS am
             INNER JOIN multi_league_winners mlw USING (playerid)
             LEFT JOIN people AS p USING (playerid)
             LEFT JOIN managers AS m USING (playerid, yearid)
@@ -233,23 +178,18 @@ SELECT
     SUM(so) AS strikeouts,
     SUM(gs) AS games_started,
     ROUND((SUM(so::numeric) / SUM(salary::numeric)), 10) AS so_per_$
-FROM
-    salaries AS s
-    INNER JOIN pitching AS pt USING (playerid)
-    INNER JOIN people AS p USING (playerid)
+FROM salaries AS s
+INNER JOIN pitching AS pt USING (playerid)
+INNER JOIN people AS p USING (playerid)
 WHERE
     s.yearid = 2016
     AND gs >= 10
-GROUP BY
-    name
-ORDER BY
-    so_per_$
+GROUP BY name
+ORDER BY so_per_$
 LIMIT 1;
 
 -- Zack Greinke was the least efficient at 0.0000048768 strikeouts per dollar
 -- 8. Find all players who have had at least 3000 career hits. Report those players' names, total number of hits, and the year they were inducted into the hall of fame (If they were not inducted into the hall of fame, put a null in that column.) Note that a player being inducted into the hall of fame is indicated by a 'Y' in the **inducted** column of the halloffame table.
-
-
 
 WITH hofers AS (SELECT DISTINCT playerid, yearid
     FROM halloffame
@@ -262,7 +202,6 @@ three_k_hitters AS (SELECT playerid
   )
 SELECT
   p.namefirst || ' ' || p.namelast AS player_name,
-  b.playerid,
   SUM(b.h) AS career_hits,
   MAX(hof.yearid) AS hof_induction_year
 FROM people AS p
@@ -270,9 +209,7 @@ INNER JOIN batting AS b USING(playerid)
 INNER JOIN three_k_hitters USING(playerid)
 LEFT JOIN hofers AS hof USING(playerid)
 GROUP BY
-  p.namefirst,
-  p.namelast,
-  b.playerid
+    player_name
 ORDER BY
   career_hits DESC;
 
