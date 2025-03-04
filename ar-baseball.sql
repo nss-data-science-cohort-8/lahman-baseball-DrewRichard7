@@ -283,7 +283,56 @@ ELSE null
 fame.playerid, fame.yearid, fame.inducted
  */
 -- 9. Find all players who had at least 1,000 hits for two different teams. Report those players' full names.
+
+SELECT playerid, SUM(h) AS hits, COUNT(DISTINCT teamid) AS n_teams
+FROM batting AS b
+GROUP BY playerid, teamid
+HAVING COUNT(DISTINCT teamid) >=2 AND SUM(h) >=1000;
+
+
+WITH hitters AS (SELECT
+    player_team_hits.playerid,
+    player_team_hits.teamid,
+    player_team_hits.hits
+FROM (SELECT
+        playerid,
+        teamid,
+        SUM(h) AS hits
+    FROM batting
+    GROUP BY playerid, teamid
+    HAVING SUM(h) >= 1000
+) AS player_team_hits
+WHERE player_team_hits.playerid IN (
+        SELECT playerid
+        FROM (
+            SELECT playerid, teamid, SUM(h) AS hits
+            FROM batting
+            GROUP BY playerid, teamid
+            HAVING SUM(h) >= 1000
+        ) AS inner_player_team_hits
+        GROUP BY playerid
+        HAVING COUNT(teamid) >= 2
+    )
+ORDER BY playerid),
+
+teamnames AS (
+    SELECT DISTINCT teamid, name
+    FROM teams
+)
+
+SELECT namefirst||' '||namelast AS playername, h.teamid AS team, h.hits AS hits
+FROM people AS p
+INNER JOIN hitters AS h
+USING(playerid)
+
+
 -- 10. Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
+
+
+
+
+
+
 -- After finishing the above questions, here are some open-ended questions to consider.
 -- **Open-ended questions**
 -- 11. Is there any correlation between number of wins and team salary? Use data from 2000 and later to answer this question. As you do this analysis, keep in mind that salaries across the whole league tend to increase together, so you may want to look on a year-by-year basis.
