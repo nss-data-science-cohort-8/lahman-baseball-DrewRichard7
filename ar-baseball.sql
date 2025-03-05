@@ -298,7 +298,133 @@ ORDER BY max_hr DESC;
 -- After finishing the above questions, here are some open-ended questions to consider.
 -- **Open-ended questions**
 -- 11. Is there any correlation between number of wins and team salary? Use data from 2000 and later to answer this question. As you do this analysis, keep in mind that salaries across the whole league tend to increase together, so you may want to look on a year-by-year basis.
+SELECT * 
+FROM teams;
+SELECT *
+FROM salaries;
+
+-- there's a weak positive correlation between a team's yearly payroll and wins (0.3423)
+WITH yearly_payroll AS (
+    SELECT s.yearid AS yearid, t.name AS teamname, t.w AS win, t.l AS loss, SUM(s.salary) AS team_payroll
+    FROM salaries AS s
+        INNER JOIN teams AS t USING (teamid, yearid)
+    WHERE yearid >= 2000
+    GROUP BY yearid, teamname, win, loss
+    ORDER BY yearid
+) 
+SELECT 
+    CORR(win, team_payroll) AS salary_wins_correlation
+FROM yearly_payroll;
+
+
 -- 12. In this question, you will explore the connection between number of wins and attendance.
--- a. Does there appear to be any correlation between attendance at home games and number of wins?
--- b. Do teams that win the world series see a boost in attendance the following year? What about teams that made the playoffs? Making the playoffs means either being a division winner or a wild card winner.
+    -- a. Does there appear to be any correlation between attendance at home games and number of wins?
+SELECT *
+FROM homegames
+ORDER BY attendance DESC;
+
+-- there appears to be a weak postive correlation between home attendance and wins (0.1665)
+WITH home_attendance AS (
+    SELECT 
+        h.year AS yearid, 
+        t.name AS teamname,
+        t.w AS win,
+        SUM(h.attendance) AS attendance
+    FROM homegames AS h
+        INNER JOIN teams AS t ON t.teamid = h.team
+    GROUP BY h.year, teamname, t.w
+)
+SELECT CORR(attendance, win)
+FROM home_attendance;
+
+    -- b. Do teams that win the world series see a boost in attendance the following year? What about teams that made the playoffs? Making the  playoffs means either being a division winner or a wild card winner.
+
+-- organizes and cleans, and gets the difference in attendance btwn each year, but doesn't do anything to analyze or aggregate
+WITH filtered AS (
+    SELECT t.name AS teamname,
+        t.yearid AS yearid,
+        CASE
+            WHEN divwin = 'Y' THEN 'Y'
+            WHEN wcwin = 'Y' THEN 'Y'
+            ELSE 'N'
+        END AS made_playoffs,
+        t.wswin AS world_series_w,
+        h.attendance AS attendance
+    FROM teams AS t
+        INNER JOIN homegames AS h ON t.teamid = h.team
+        AND t.yearid = h.year
+    WHERE t.wswin IS NOT NULL
+        OR t.wcwin IS NOT NULL
+        AND t.lgid IN ('AL', 'NL')
+    GROUP BY t.name, t.yearid, t.wswin, t.divwin, t.wcwin, h.attendance
+    -- ORDER BY teamname ASC,
+    --     yearid ASC
+)
+
+SELECT teamname, 
+    yearid, 
+    made_playoffs, 
+    world_series_w, 
+    attendance, 
+    LAG(attendance, 1) 
+        OVER(PARTITION BY teamname ORDER BY yearid) AS prev_yr_att,
+    attendance - (LAG(attendance, 1) 
+        OVER(PARTITION BY teamname ORDER BY yearid)) AS diff
+FROM filtered;
+
+
+-- gives the average difference in attendance after a WS winn compared to non ws win years 
+-- really seems more like baseball as a whole is growing and that a WS win doesn't directly mean more attendance the following year by this analysis.
+WITH filtered AS (
+    SELECT t.name AS teamname,
+           t.yearid AS yearid,
+           CASE
+               WHEN divwin = 'Y' THEN 'Y'
+               WHEN wcwin = 'Y' THEN 'Y'
+               ELSE 'N'
+           END AS made_playoffs,
+           t.wswin AS world_series_w,
+           h.attendance AS attendance
+    FROM teams AS t
+        INNER JOIN homegames AS h ON t.teamid = h.team
+        AND t.yearid = h.year
+    WHERE (t.wswin IS NOT NULL OR t.wcwin IS NOT NULL)
+        AND t.lgid IN ('AL', 'NL')
+    GROUP BY t.name, t.yearid, t.wswin, t.divwin, t.wcwin, h.attendance
+),
+attendance_changes AS (
+    SELECT teamname, 
+           yearid, 
+           made_playoffs, 
+           world_series_w, 
+           attendance, 
+           LAG(attendance, 1) OVER(PARTITION BY teamname ORDER BY yearid) AS prev_yr_att,
+           attendance - LAG(attendance, 1) OVER(PARTITION BY teamname ORDER BY yearid) AS diff
+    FROM filtered
+),
+yearly_changes AS (
+    SELECT teamname,
+           yearid,
+           world_series_w,
+           prev_yr_att,
+           diff,
+           CASE 
+               WHEN LAG(world_series_w, 1) OVER(PARTITION BY teamname ORDER BY yearid) = 'Y' THEN 'After WS Win' 
+               ELSE 'Other Years' 
+           END AS year_type
+    FROM attendance_changes
+)
+SELECT 
+    year_type,
+    AVG(diff) AS avg_attendance_change,
+    COUNT(yearid) AS num_years
+FROM yearly_changes
+WHERE prev_yr_att IS NOT NULL
+GROUP BY year_type;
+
+-- For each year i need to calculate the difference in attendance between that year and the following year. 
+-- I need to correlate if the team with wswin has a higher difference than the other teams. 
+-- what about diff of diff? would that give a better indication of whether the wswin causes attendance spike? 
+
+
 -- 13. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
