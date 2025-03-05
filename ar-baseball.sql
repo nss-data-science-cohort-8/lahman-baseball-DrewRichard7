@@ -5,29 +5,22 @@
 
 -- collegeplaying table lists all the years the player played, david price played 3 years at vandy, which causes his numbers to triple in the join. 
 -- need to fix 
-SELECT
-    sc.schoolid,
-    sc.schoolname,
-    p.playerid,
-    p.namefirst,
-    p.namelast,
-    SUM(sa.salary) AS salary
-FROM people AS p
-    INNER JOIN collegeplaying AS c USING (playerid)
-    INNER JOIN schools AS sc USING (schoolid)
-    INNER JOIN salaries AS sa USING (playerid)
-WHERE LOWER(schoolname) LIKE '%vand%'
-GROUP BY
-    p.playerid,
-    sc.schoolname,
-    sc.schoolid,
-    p.namefirst,
-    p.namelast
-ORDER BY
-    sc.schoolname,
-    salary DESC
-LIMIT 1;
 
+WITH vandyboys AS (
+    SELECT playerid, schoolid 
+    FROM collegeplaying
+    WHERE LOWER(schoolid) LIKE '%vand%'
+    GROUP BY playerid, schoolid
+)
+SELECT 
+    namefirst||' '||namelast AS playername,
+    SUM(salary::NUMERIC::MONEY) AS total_salary
+FROM salaries AS s
+    INNER JOIN people AS p USING (playerid)
+    RIGHT JOIN vandyboys AS v USING (playerid)
+GROUP BY playername
+ORDER BY total_salary DESC NULLS LAST
+LIMIT 1;
 
 -- 2. Using the fielding table, group players into three groups based on their position: label players with position OF as "Outfield", those with position "SS", "1B", "2B", and "3B" as "Infield", and those with position "P" or "C" as "Battery". Determine the number of putouts made by each of these three groups in 2016.
 SELECT *
