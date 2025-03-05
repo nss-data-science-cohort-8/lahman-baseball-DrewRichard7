@@ -2,6 +2,9 @@
 - this data has been made available [online](http://www.seanlahman.com/baseball-archive/statistics/) by Sean Lahman
 - you can find a data dictionary [here](http://www.seanlahman.com/files/database/readme2016.txt)*/
 -- 1. Find all players in the database who played at Vanderbilt University. Create a list showing each player's first and last names as well as the total salary they earned in the major leagues. Sort this list in descending order by the total salary earned. Which Vanderbilt player earned the most money in the majors?
+
+-- collegeplaying table lists all the years the player played, david price played 3 years at vandy, which causes his numbers to triple in the join. 
+-- need to fix 
 SELECT
     sc.schoolid,
     sc.schoolname,
@@ -25,21 +28,17 @@ ORDER BY
     salary DESC
 LIMIT 1;
 
--- David Price earned $245553888 in the majors
+
 -- 2. Using the fielding table, group players into three groups based on their position: label players with position OF as "Outfield", those with position "SS", "1B", "2B", and "3B" as "Infield", and those with position "P" or "C" as "Battery". Determine the number of putouts made by each of these three groups in 2016.
 SELECT *
 FROM fielding;
 
 SELECT
     yearid,
-    CASE WHEN LOWER(pos) IN ('ss', '1b', '2b', '3b') THEN
-        'infield'
-    WHEN LOWER(pos) = 'of' THEN
-        'outfield'
-    WHEN LOWER(pos) IN ('p', 'c') THEN
-        'battery'
-    ELSE
-        NULL
+    CASE WHEN LOWER(pos) IN ('ss', '1b', '2b', '3b') THEN 'infield'
+    WHEN LOWER(pos) = 'of' THEN 'outfield'
+    WHEN LOWER(pos) IN ('p', 'c') THEN 'battery'
+    ELSE NULL
     END AS position_group,
     SUM(po) AS putouts
 FROM fielding
@@ -50,57 +49,65 @@ GROUP BY yearid, position_group;
 SELECT *
 FROM teams;
 
--- avg strikeouts per game by decade since 1920
+-- avg strikeouts and homeruns per game by decade since 1920
 SELECT
     trunc(yearid, -1) || 's' AS decade,
     AVG(g) AS avg_games_played,
     AVG(so) AS avg_strikeouts_pitching,
-    ROUND(SUM(so)::numeric /(SUM(g)::numeric), 2) AS avg_so_per_game
-FROM teams
-WHERE yearid >= 1920
-GROUP BY decade
-ORDER BY decade;
-
--- avg hr per game by decade since 1920
-SELECT
-    trunc(yearid, -1) || 's' AS decade,
-    AVG(g) AS avg_games_played,
-    AVG(hr) AS avg_hr_per_year,
+    ROUND(SUM(so)::numeric /(SUM(g)::numeric), 2) AS avg_so_per_game,
     ROUND(SUM(hr)::numeric /(SUM(g)::numeric), 2) AS avg_hr_per_game
 FROM teams
 WHERE yearid >= 1920
 GROUP BY decade
 ORDER BY decade;
 
+
+WITH years AS (
+	SELECT generate_series(1920, 2020, 10) AS decades
+	)
+SELECT decades, ROUND(SUM(so) * 1.0/SUM(g), 2) AS avg_strikeouts_per_game
+FROM teams AS t
+INNER JOIN years
+ON t.yearid < (decades + 10) AND t.yearid >= decades
+GROUP BY decades;
+
+WITH years AS (
+	SELECT generate_series(1920, 2020, 10) AS decades
+	)
+SELECT decades, ROUND(SUM(hr) * 1.0/SUM(g), 2) AS avg_homeruns_per_game
+FROM teams AS t
+INNER JOIN years
+ON t.yearid < (decades + 10) AND t.yearid >= decades
+GROUP BY decades;
+
+
 -- 4. Find the player who had the most success stealing bases in 2016, where __success__ is measured as the percentage of stolen base attempts which are successful. (A stolen base attempt results either in a stolen base or being caught stealing.) Consider only players who attempted _at least_ 20 stolen bases. Report the players' names, number of stolen bases, number of attempts, and stolen base percentage.
 
 -- name, sb, att, sb_pct
 SELECT
     namefirst || ' ' || namelast AS name,
-    sb,
-    cs,
-    sb + cs AS att,
-    ROUND((sb::numeric /(sb::numeric + cs::numeric)) * 100, 2) AS sb_pct
+    SUM(sb),
+    SUM(cs),
+    SUM(sb + cs) AS att,
+    ROUND((SUM(sb)::numeric /(SUM(sb)::numeric + SUM(cs)::numeric)) * 100, 2) AS sb_pct
 FROM batting AS b
     INNER JOIN people AS p USING (playerid)
 WHERE yearid = 2016
-    AND sb + cs >= 20
-GROUP BY name, sb, cs
+GROUP BY name
+HAVING SUM(sb + cs) >= 20
 ORDER BY sb_pct DESC
-LIMIT 1;
+-- LIMIT 1;
 
 -- 5. From 1970 to 2016, what is the largest number of wins for a team that did not win the world series? What is the smallest number of wins for a team that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion; determine why this is the case. Then redo your query, excluding the problem year. How often from 1970 to 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
 
 -- most wins, no world series
 -- 2001 Mariners: 116 W
--- least wins, world series
 SELECT yearid, name, w, l, wswin
 FROM teams
 WHERE yearid BETWEEN 1970 AND 2016
     AND wswin = 'N'
 ORDER BY w DESC
 LIMIT 1;
-
 
 -- 1981 Dodgers: 63 W
 -- 1981 players strike, exclude 1981
@@ -110,7 +117,7 @@ WHERE yearid BETWEEN 1970 AND 2016
     AND wswin = 'Y'
 ORDER BY w;
 
-
+-- least wins, world series
 -- 2006 Cards: 83 W
 SELECT yearid, name, w, l, wswin
 FROM teams
@@ -120,6 +127,26 @@ WHERE yearid BETWEEN 1970 AND 2016
 ORDER BY w
 LIMIT 1;
 
+
+--How often from 1970 to 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
+-- use window function with RANK()
+
+WITH ranked_teams AS (
+    SELECT
+        yearid,
+        name,
+        w,
+        wswin,
+        RANK() OVER (PARTITION BY yearid ORDER BY w DESC) AS rank
+    FROM teams
+    WHERE yearid BETWEEN 1970 AND 2016
+)
+SELECT 
+    COUNT(*) AS n_most_w_and_wswin,
+    ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM ranked_teams), 2) AS pct
+FROM ranked_teams
+WHERE rank = 1
+    AND wswin = 'Y';
 
 
 -- 6. Which managers have won the TSN Manager of the Year award in both the National League (NL) and the American League (AL)? Give their full name and the teams that they were managing when they won the award.
@@ -428,3 +455,62 @@ GROUP BY year_type;
 
 
 -- 13. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
+SELECT *
+FROM pitching;
+SELECT *
+FROM awardsplayers;
+
+
+-- career stats
+SELECT namefirst||' '||namelast AS playername, playerid, SUM(so) AS total_strikeouts, SUM(ipouts / 3) AS innings_pitched, AVG(era), throws
+FROM pitching AS pt
+    LEFT JOIN people AS p USING(playerid)
+GROUP BY playername, playerid, throws;
+
+
+-- by season, including Cy Young status
+SELECT pt.yearid, namefirst||' '||namelast AS playername, playerid, SUM(so) AS total_strikeouts, SUM(ipouts / 3) AS innings_pitched, AVG(era), throws,
+CASE WHEN LOWER(awardid) LIKE '%cy young%' THEN 'Cy Young Winner' ELSE 'loser' END AS cy_young
+FROM pitching AS pt
+    LEFT JOIN people AS p USING(playerid)
+    LEFT JOIN awardsplayers AS ap USING(playerid, yearid)
+GROUP BY playername, playerid, throws, awardid, pt.yearid;
+
+-- wrong handers vs right handers
+WITH lefties AS (
+    SELECT namefirst||' '||namelast AS playername, playerid, SUM(so) AS total_strikeouts, SUM(ipouts / 3) AS innings_pitched, AVG(era), throws
+    FROM pitching AS pt
+        LEFT JOIN people AS p USING(playerid)
+    WHERE throws = 'L' AND throws IS NOT NULL
+    GROUP BY playername, playerid, throws
+)
+
+SELECT 
+    COUNT(DISTINCT playerid) AS n_lefties,
+    ROUND((COUNT(DISTINCT playerid)::NUMERIC) / (
+        SELECT COUNT(DISTINCT playerid)::NUMERIC
+        FROM pitching
+    ), 2) AS proportion,
+    AVG(total_strikeouts) AS avg_career_so,
+    AVG(innings_pitched) AS avg_ip,
+    SUM(total_strikeouts) / SUM(innings_pitched) AS so_per_ip,
+    throws
+FROM lefties
+GROUP BY throws;
+
+
+
+SELECT 
+    throws, 
+    COUNT(DISTINCT playerid) AS n_pitchers,
+    ROUND((COUNT(DISTINCT playerid)::NUMERIC) / (
+        SELECT COUNT(DISTINCT playerid)::NUMERIC
+        FROM pitching
+    ), 2) AS proportion,
+    SUM(so) AS total_strikeouts, 
+    SUM(ipouts / 3) AS innings_pitched, 
+    AVG(era) 
+FROM pitching AS pt
+    LEFT JOIN people AS p USING(playerid)
+WHERE throws IS NOT NULL
+GROUP BY throws
