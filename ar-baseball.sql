@@ -87,10 +87,11 @@ FROM batting AS b
 WHERE yearid = 2016
 GROUP BY name
 HAVING SUM(sb + cs) >= 20
-ORDER BY sb_pct DESC
+ORDER BY sb_pct DESC;
 -- LIMIT 1;
 
--- 5. From 1970 to 2016, what is the largest number of wins for a team that did not win the world series? What is the smallest number of wins for a team that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion; determine why this is the case. Then redo your query, excluding the problem year. How often from 1970 to 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
+-- 5. From 1970 to 2016, what is the largest number of wins for a team that did not win the world series? What is the smallest number of wins for a team that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion; 
+    --determine why this is the case. Then redo your query, excluding the problem year. How often from 1970 to 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
 
 -- most wins, no world series
 -- 2001 Mariners: 116 W
@@ -410,34 +411,66 @@ FROM pitching AS pt
 GROUP BY playername, playerid, throws;
 
 -- wrong handers vs right handers
+-- this gives n cy young winners and pct of cy young winners per hand
+WITH cy_young_awards AS (
+    SELECT * 
+    FROM awardsplayers
+    WHERE awardid = 'Cy Young Award'
+)
+SELECT 
+    throws, 
+    COUNT(playerid) AS n_players,
+    COUNT(playerid) / (SELECT COUNT(playerid)::NUMERIC FROM cy_young_awards)::NUMERIC * 100 AS pct_cy_young_winners
+FROM people AS p
+    INNER JOIN cy_young_awards AS cya USING(playerid)
+    GROUP BY throws;
+
+-- want to get pct lefties who won cy young and pct righties who won cy young
+
+
+
+
+
+-- this gives a table with comparison of righties vs lefties in terms of strikeouts, strikouts per innings pitched, hall of fame induction, and share of pitchers per hand
 WITH hof_pitchers AS (
-    SELECT DISTINCT playerid, throws
-    FROM people AS p 
+    SELECT DISTINCT playerid,
+        throws
+    FROM people AS p
         INNER JOIN halloffame AS hof USING (playerid)
         INNER JOIN pitching AS pt USING (playerid)
     WHERE inducted = 'Y'
 )
-
-SELECT 
-    p.throws, 
+SELECT p.throws,
     COUNT(DISTINCT playerid) AS n_pitchers,
-    ROUND((COUNT(DISTINCT playerid)::NUMERIC) / (
-        SELECT COUNT(DISTINCT playerid)::NUMERIC
-        FROM pitching
-    ) * 100, 2)||'%' AS pct_pitchers,
-    SUM(so) AS total_strikeouts, 
-    SUM(ipouts / 3) AS innings_pitched, 
-    ROUND(SUM(so::NUMERIC) / (SELECT SUM(so::NUMERIC) FROM pitching) * 100, 2)||'%' AS so_pct,
+    ROUND(
+        (COUNT(DISTINCT playerid)::NUMERIC) / (
+            SELECT COUNT(DISTINCT playerid)::NUMERIC
+            FROM pitching
+        ) * 100,
+        2
+    ) || '%' AS pct_pitchers,
+    SUM(so) AS total_strikeouts,
+    SUM(ipouts / 3) AS innings_pitched,
+    ROUND(
+        SUM(so::NUMERIC) / (
+            SELECT SUM(so::NUMERIC)
+            FROM pitching
+        ) * 100,
+        2
+    ) || '%' AS so_pct,
     ROUND(AVG(era::NUMERIC), 2) AS avg_era,
     ROUND(SUM(so::NUMERIC) / SUM(ipouts::NUMERIC / 3), 2) AS so_per_ip,
-    COUNT(DISTINCT CASE WHEN LOWER(awardid) LIKE '%cy young%' THEN playerid END) AS cy_young_winners,
-    ROUND(COUNT(DISTINCT CASE WHEN LOWER(awardid) LIKE '%cy young%' THEN playerid END)::NUMERIC / (SELECT COUNT(DISTINCT playerid) FROM awardsplayers WHERE LOWER(awardid) LIKE '%cy young%')::NUMERIC * 100, 2)||'%' AS cy_young_pct,
-    ROUND(COUNT(DISTINCT playerid)::NUMERIC / (SELECT COUNT(DISTINCT playerid)::NUMERIC FROM hof_pitchers) * 100, 2)::TEXT || '%' AS pct_hof
+    COUNT(DISTINCT hof.playerid) AS hofers,
+    ROUND(
+        COUNT(DISTINCT playerid)::NUMERIC / (
+            SELECT COUNT(DISTINCT playerid)::NUMERIC
+            FROM hof_pitchers
+        ) * 100,
+        2
+    )::TEXT || '%' AS pct_hof
 FROM pitching AS pt
     LEFT JOIN people AS p USING(playerid)
     LEFT JOIN awardsplayers AS ap USING(playerid, yearid)
     INNER JOIN hof_pitchers AS hof USING(playerid)
 WHERE p.throws IS NOT NULL
 GROUP BY p.throws;
-
-
