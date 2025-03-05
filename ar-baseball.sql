@@ -3,8 +3,6 @@
 - you can find a data dictionary [here](http://www.seanlahman.com/files/database/readme2016.txt)*/
 -- 1. Find all players in the database who played at Vanderbilt University. Create a list showing each player's first and last names as well as the total salary they earned in the major leagues. Sort this list in descending order by the total salary earned. Which Vanderbilt player earned the most money in the majors?
 
--- collegeplaying table lists all the years the player played, david price played 3 years at vandy, which causes his numbers to triple in the join. 
--- need to fix 
 
 WITH vandyboys AS (
     SELECT playerid, schoolid 
@@ -23,6 +21,7 @@ ORDER BY total_salary DESC NULLS LAST
 LIMIT 1;
 
 -- 2. Using the fielding table, group players into three groups based on their position: label players with position OF as "Outfield", those with position "SS", "1B", "2B", and "3B" as "Infield", and those with position "P" or "C" as "Battery". Determine the number of putouts made by each of these three groups in 2016.
+
 SELECT *
 FROM fielding;
 
@@ -54,7 +53,7 @@ WHERE yearid >= 1920
 GROUP BY decade
 ORDER BY decade;
 
-
+-- using generate_series
 WITH years AS (
 	SELECT generate_series(1920, 2020, 10) AS decades
 	)
@@ -122,8 +121,6 @@ LIMIT 1;
 
 
 --How often from 1970 to 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
--- use window function with RANK()
-
 WITH ranked_teams AS (
     SELECT
         yearid,
@@ -143,31 +140,9 @@ WHERE rank = 1
 
 
 -- 6. Which managers have won the TSN Manager of the Year award in both the National League (NL) and the American League (AL)? Give their full name and the teams that they were managing when they won the award.
+
 -- tables to join:
 -- teams, managers, people, awardsmanagers
-SELECT
-    playerid,
-    namefirst || ' ' || namelast AS name,
-    am.yearid,
-    awardid,
-    am.lgid,
-    t.name AS teamname
-FROM awardsmanagers AS am
-    LEFT JOIN people AS p USING (playerid)
-    LEFT JOIN managers AS m USING (playerid, yearid)
-    LEFT JOIN teams AS t USING (teamid, yearid)
-WHERE
-    am.lgid <> 'ML'
-    AND awardid = 'TSN Manager of the Year'
-    AND playerid IN (
-        SELECT playerid
-        FROM awardsmanagers
-        WHERE awardid = 'TSN Manager of the Year'
-            AND lgid <> 'ML'
-        GROUP BY playerid
-        HAVING COUNT(DISTINCT lgid) = 2);
-
--- more efficient way i think
 WITH multi_league_winners AS (
     SELECT playerid
     FROM awardsmanagers
@@ -175,21 +150,21 @@ WITH multi_league_winners AS (
         AND lgid IN ('AL', 'NL')
     GROUP BY playerid
     HAVING COUNT(DISTINCT lgid) = 2)
-        SELECT
-            am.playerid,
-            p.namefirst || ' ' || p.namelast AS name,
-            am.yearid,
-            am.awardid,
-            am.lgid,
-            t.name AS teamname
-        FROM awardsmanagers AS am
-            INNER JOIN multi_league_winners mlw USING (playerid)
-            LEFT JOIN people AS p USING (playerid)
-            LEFT JOIN managers AS m USING (playerid, yearid)
-            LEFT JOIN teams AS t USING (teamid, yearid)
-        WHERE
-            am.awardid = 'TSN Manager of the Year'
-            AND am.lgid IN ('AL', 'NL');
+SELECT
+    am.playerid,
+    p.namefirst || ' ' || p.namelast AS name,
+    am.yearid,
+    am.awardid,
+    am.lgid,
+    t.name AS teamname
+FROM awardsmanagers AS am
+    INNER JOIN multi_league_winners mlw USING (playerid)
+    LEFT JOIN people AS p USING (playerid)
+    LEFT JOIN managers AS m USING (playerid, yearid)
+    LEFT JOIN teams AS t USING (teamid, yearid)
+WHERE
+    am.awardid = 'TSN Manager of the Year'
+    AND am.lgid IN ('AL', 'NL');
 
 -- 7. Which pitcher was the least efficient in 2016 in terms of salary / strikeouts? Only consider pitchers who started at least 10 games (across all teams). Note that pitchers often play for more than one team in a season, so be sure that you are counting all stats for each player.
 SELECT
@@ -233,18 +208,7 @@ GROUP BY
 ORDER BY
   career_hits DESC;
 
-/* filter HOF down to names for inducted = 'Y'
-if name of hits >3000 in filter_hof, then fame.yearid
-ELSE null 
-
-fame.playerid, fame.yearid, fame.inducted
- */
 -- 9. Find all players who had at least 1,000 hits for two different teams. Report those players' full names.
-
-SELECT playerid, SUM(h) AS hits, COUNT(DISTINCT teamid) AS n_teams
-FROM batting AS b
-GROUP BY playerid, teamid
-HAVING COUNT(DISTINCT teamid) >=2 AND SUM(h) >=1000;
 
 
 WITH hitters AS (SELECT
@@ -285,9 +249,6 @@ USING(playerid);
 
 -- 10. Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
 
-SELECT *
-FROM batting;
-
 WITH MaxHRByPlayer AS (
     SELECT playerid, MAX(hr) AS max_hr
     FROM batting
@@ -312,16 +273,9 @@ WHERE yearid = 2016
     AND hr <> 0
 ORDER BY max_hr DESC;
 
-
-
-
 -- After finishing the above questions, here are some open-ended questions to consider.
 -- **Open-ended questions**
 -- 11. Is there any correlation between number of wins and team salary? Use data from 2000 and later to answer this question. As you do this analysis, keep in mind that salaries across the whole league tend to increase together, so you may want to look on a year-by-year basis.
-SELECT * 
-FROM teams;
-SELECT *
-FROM salaries;
 
 -- there's a weak positive correlation between a team's yearly payroll and wins (0.3423)
 WITH yearly_payroll AS (
@@ -448,11 +402,6 @@ GROUP BY year_type;
 
 
 -- 13. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
-SELECT *
-FROM pitching;
-SELECT *
-FROM awardsplayers;
-
 
 -- career stats
 SELECT namefirst||' '||namelast AS playername, playerid, SUM(so) AS total_strikeouts, SUM(ipouts / 3) AS innings_pitched, AVG(era), throws
@@ -460,50 +409,35 @@ FROM pitching AS pt
     LEFT JOIN people AS p USING(playerid)
 GROUP BY playername, playerid, throws;
 
-
--- by season, including Cy Young status
-SELECT pt.yearid, namefirst||' '||namelast AS playername, playerid, SUM(so) AS total_strikeouts, SUM(ipouts / 3) AS innings_pitched, AVG(era), throws,
-CASE WHEN LOWER(awardid) LIKE '%cy young%' THEN 'Cy Young Winner' ELSE 'loser' END AS cy_young
-FROM pitching AS pt
-    LEFT JOIN people AS p USING(playerid)
-    LEFT JOIN awardsplayers AS ap USING(playerid, yearid)
-GROUP BY playername, playerid, throws, awardid, pt.yearid;
-
 -- wrong handers vs right handers
-WITH lefties AS (
-    SELECT namefirst||' '||namelast AS playername, playerid, SUM(so) AS total_strikeouts, SUM(ipouts / 3) AS innings_pitched, AVG(era), throws
-    FROM pitching AS pt
-        LEFT JOIN people AS p USING(playerid)
-    WHERE throws = 'L' AND throws IS NOT NULL
-    GROUP BY playername, playerid, throws
+WITH hof_pitchers AS (
+    SELECT DISTINCT playerid, throws
+    FROM people AS p 
+        INNER JOIN halloffame AS hof USING (playerid)
+        INNER JOIN pitching AS pt USING (playerid)
+    WHERE inducted = 'Y'
 )
 
 SELECT 
-    COUNT(DISTINCT playerid) AS n_lefties,
-    ROUND((COUNT(DISTINCT playerid)::NUMERIC) / (
-        SELECT COUNT(DISTINCT playerid)::NUMERIC
-        FROM pitching
-    ), 2) AS proportion,
-    AVG(total_strikeouts) AS avg_career_so,
-    AVG(innings_pitched) AS avg_ip,
-    SUM(total_strikeouts) / SUM(innings_pitched) AS so_per_ip,
-    throws
-FROM lefties
-GROUP BY throws;
-
-
-
-SELECT 
-    throws, 
+    p.throws, 
     COUNT(DISTINCT playerid) AS n_pitchers,
     ROUND((COUNT(DISTINCT playerid)::NUMERIC) / (
         SELECT COUNT(DISTINCT playerid)::NUMERIC
         FROM pitching
-    ), 2) AS proportion,
+    ) * 100, 2)||'%' AS pct_pitchers,
     SUM(so) AS total_strikeouts, 
     SUM(ipouts / 3) AS innings_pitched, 
-    AVG(era) 
+    ROUND(SUM(so::NUMERIC) / (SELECT SUM(so::NUMERIC) FROM pitching) * 100, 2)||'%' AS so_pct,
+    ROUND(AVG(era::NUMERIC), 2) AS avg_era,
+    ROUND(SUM(so::NUMERIC) / SUM(ipouts::NUMERIC / 3), 2) AS so_per_ip,
+    COUNT(DISTINCT CASE WHEN LOWER(awardid) LIKE '%cy young%' THEN playerid END) AS cy_young_winners,
+    ROUND(COUNT(DISTINCT CASE WHEN LOWER(awardid) LIKE '%cy young%' THEN playerid END)::NUMERIC / (SELECT COUNT(DISTINCT playerid) FROM awardsplayers WHERE LOWER(awardid) LIKE '%cy young%')::NUMERIC * 100, 2)||'%' AS cy_young_pct,
+    ROUND(COUNT(DISTINCT playerid)::NUMERIC / (SELECT COUNT(DISTINCT playerid)::NUMERIC FROM hof_pitchers) * 100, 2)::TEXT || '%' AS pct_hof
 FROM pitching AS pt
     LEFT JOIN people AS p USING(playerid)
-WHERE throws IS NOT NULL
-GROUP BY throws
+    LEFT JOIN awardsplayers AS ap USING(playerid, yearid)
+    INNER JOIN hof_pitchers AS hof USING(playerid)
+WHERE p.throws IS NOT NULL
+GROUP BY p.throws;
+
+
