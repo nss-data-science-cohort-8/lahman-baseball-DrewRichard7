@@ -404,14 +404,21 @@ GROUP BY year_type;
 
 -- 13. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
 
--- career stats
-SELECT namefirst||' '||namelast AS playername, playerid, SUM(so) AS total_strikeouts, SUM(ipouts / 3) AS innings_pitched, AVG(era), throws
-FROM pitching AS pt
-    LEFT JOIN people AS p USING(playerid)
-GROUP BY playername, playerid, throws;
+-- left hander rarity --
+--------------------------------------------------------------------------------
+-- this gives the number of left handed pitchers and right handed pitchers
+SELECT 
+    throws, 
+    COUNT(DISTINCT playerid) AS n_pitchers
+FROM people
+    INNER JOIN pitching USING(playerid)
+WHERE throws IS NOT NULL
+GROUP BY throws;
 
--- wrong handers vs right handers
--- this gives n cy young winners and pct of cy young winners per hand
+
+-- wrong handers vs right handers -- 
+--------------------------------------------------------------------------------
+-- this gives n cy young winners and pct of cy young winners by hand
 WITH cy_young_awards AS (
     SELECT * 
     FROM awardsplayers
@@ -425,13 +432,58 @@ FROM people AS p
     INNER JOIN cy_young_awards AS cya USING(playerid)
     GROUP BY throws;
 
--- want to get pct lefties who won cy young and pct righties who won cy young
+
+-- Cy Young Awards --
+-------------------------------------------------------------------------------
+-- distinct cy young winners from the awards table and total distinct pitchers from the pitching table grouped by hand. To make not distinct and count basically by season, delete the DISTINCT calls in the SELECT statement
+-- around 1.5% of left handed pitchers won the cy young award, and around 1.3% of right handed pitchers won the cy young award. 
+WITH cy_young AS(
+    WITH cy_s AS (
+        SELECT playerid, yearid, awardid
+        FROM awardsplayers
+        WHERE awardid = 'Cy Young Award'
+            AND yearid > 1955
+    )
+
+    SELECT
+        throws,
+        pt.playerid,
+        pt.yearid,
+        CASE WHEN awardid = 'Cy Young Award' THEN 'W' ELSE NULL END AS cy_young_winner
+    FROM pitching AS pt
+        LEFT JOIN cy_s AS cy ON pt.playerid = cy.playerid AND pt.yearid = cy.yearid AND awardid = 'Cy Young Award' 
+        LEFT JOIN people AS p ON pt.playerid = p.playerid 
+    WHERE pt.yearid > 1955
+    GROUP BY throws, pt.playerid, pt.yearid, cy.awardid
+    ORDER BY pt.yearid
+)
+SELECT 
+    throws,
+    COUNT(DISTINCT playerid) AS n_pitchers,
+    COUNT(DISTINCT CASE WHEN cy_young_winner = 'W' THEN playerid END) AS cy_young_winners,
+    ROUND(COUNT(DISTINCT CASE WHEN cy_young_winner = 'W' THEN playerid END)::NUMERIC / COUNT(DISTINCT playerid) * 100, 2) || '%' AS pct_cy_young_winners
+FROM cy_young
+GROUP BY throws;
 
 
+-- Hall of famers --
+--------------------------------------------------------------------------------
+
+-- share of hofers (pitchers) for handedness
+SELECT 
+    throws, 
+    COUNT(DISTINCT playerid) AS n_pitchers
+FROM halloffame
+    LEFT JOIN people AS p USING(playerid)
+    INNER JOIN pitching AS pt USING(playerid)
+WHERE inducted = 'Y' AND throws IS NOT NULL
+GROUP BY throws;
 
 
+--------------------------------------------------------------------------------
 
 -- this gives a table with comparison of righties vs lefties in terms of strikeouts, strikouts per innings pitched, hall of fame induction, and share of pitchers per hand
+
 WITH hof_pitchers AS (
     SELECT DISTINCT playerid,
         throws
@@ -441,23 +493,8 @@ WITH hof_pitchers AS (
     WHERE inducted = 'Y'
 )
 SELECT p.throws,
-    COUNT(DISTINCT playerid) AS n_pitchers,
-    ROUND(
-        (COUNT(DISTINCT playerid)::NUMERIC) / (
-            SELECT COUNT(DISTINCT playerid)::NUMERIC
-            FROM pitching
-        ) * 100,
-        2
-    ) || '%' AS pct_pitchers,
     SUM(so) AS total_strikeouts,
     SUM(ipouts / 3) AS innings_pitched,
-    ROUND(
-        SUM(so::NUMERIC) / (
-            SELECT SUM(so::NUMERIC)
-            FROM pitching
-        ) * 100,
-        2
-    ) || '%' AS so_pct,
     ROUND(AVG(era::NUMERIC), 2) AS avg_era,
     ROUND(SUM(so::NUMERIC) / SUM(ipouts::NUMERIC / 3), 2) AS so_per_ip,
     COUNT(DISTINCT hof.playerid) AS hofers,
@@ -474,3 +511,9 @@ FROM pitching AS pt
     INNER JOIN hof_pitchers AS hof USING(playerid)
 WHERE p.throws IS NOT NULL
 GROUP BY p.throws;
+
+
+-- analysis --
+--------------------------------------------------------------------------------
+-- these stats suggest it's not exactly a given that a lefty is better than a righty. lefties make up about a quarter of the hall of fame, while being about a quarter of total pitchers altogether, so not interesting. they have a slightly higher avg era, but a slighlty higher soip. 
+-- around 1.5% of lefties have won the cy young, and around 1.3% of righties have won the cy young, although about a third of cy young winners were lefties, so that's something considering they make up only about a fourth of all pitchers.  
