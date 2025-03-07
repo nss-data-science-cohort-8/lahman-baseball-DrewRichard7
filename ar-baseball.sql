@@ -305,6 +305,12 @@ FROM YearOfMaxHR
 LEFT JOIN people AS p USING(playerid)
 WHERE yearid = 2016
     AND hr <> 0
+    AND playerid IN (
+        SELECT playerid 
+        FROM batting
+        GROUP BY playerid
+        HAVING COUNT(DISTINCT yearid) >= 10
+    )
 ORDER BY max_hr DESC;
 
 -- After finishing the above questions, here are some open-ended questions to consider.
