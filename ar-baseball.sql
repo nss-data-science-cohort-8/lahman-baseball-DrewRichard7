@@ -168,6 +168,8 @@ WHERE
     AND am.lgid IN ('AL', 'NL');
 
 -- 7. Which pitcher was the least efficient in 2016 in terms of salary / strikeouts? Only consider pitchers who started at least 10 games (across all teams). Note that pitchers often play for more than one team in a season, so be sure that you are counting all stats for each player.
+
+-- this is for pitchers who started 10 or more games for one team in 2016
 SELECT
     namefirst || ' ' || namelast AS name,
     SUM(salary) AS salary,
@@ -185,6 +187,7 @@ ORDER BY so_per_$;
 
 
 -- USING HAVING SUM(gs) >= 10 instead of including in WHERE clause
+-- pitchers who started 10 or more games for any team in 2016
 SELECT
     namefirst || ' ' || namelast AS name,
     SUM(salary) AS salary,
