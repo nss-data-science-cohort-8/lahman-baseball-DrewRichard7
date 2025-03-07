@@ -188,6 +188,16 @@ ORDER BY so_per_$;
 
 -- USING HAVING SUM(gs) >= 10 instead of including in WHERE clause
 -- pitchers who started 10 or more games for any team in 2016
+
+-- cte to get james shields' real salary 
+
+WITH salary AS (
+    SELECT 
+)
+
+
+
+
 SELECT
     namefirst || ' ' || namelast AS name,
     SUM(salary) AS salary,
@@ -195,16 +205,18 @@ SELECT
     SUM(gs) AS games_started,
     ROUND((SUM(so::numeric) / SUM(salary::numeric)), 10) AS so_per_$
 FROM salaries AS s
-INNER JOIN pitching AS pt USING (playerid)
+INNER JOIN pitching AS pt USING (playerid, yearid, teamid)
 INNER JOIN people AS p USING (playerid)
 WHERE
-    s.yearid = 2016
+    s.yearid = 2016 AND pt.yearid = 2016
 GROUP BY name
 HAVING SUM(gs) >=10
 ORDER BY so_per_$;
 
 
 -- Zack Greinke was the least efficient at 0.0000048768 strikeouts per dollar
+-- Matt Harrison was the least efficient of pitchers who threw 10 games total
+
 -- 8. Find all players who have had at least 3000 career hits. Report those players' names, total number of hits, and the year they were inducted into the hall of fame (If they were not inducted into the hall of fame, put a null in that column.) Note that a player being inducted into the hall of fame is indicated by a 'Y' in the **inducted** column of the halloffame table.
 
 WITH hofers AS (SELECT DISTINCT playerid, yearid
@@ -236,26 +248,27 @@ WITH hitters AS (SELECT
     player_team_hits.playerid,
     player_team_hits.teamid,
     player_team_hits.hits
-FROM (SELECT
-        playerid,
-        teamid,
-        SUM(h) AS hits
-    FROM batting
-    GROUP BY playerid, teamid
-    HAVING SUM(h) >= 1000
-) AS player_team_hits
-WHERE player_team_hits.playerid IN (
-        SELECT playerid
-        FROM (
-            SELECT playerid, teamid, SUM(h) AS hits
-            FROM batting
-            GROUP BY playerid, teamid
-            HAVING SUM(h) >= 1000
-        ) AS inner_player_team_hits
-        GROUP BY playerid
-        HAVING COUNT(teamid) >= 2
-    )
-ORDER BY playerid),
+    FROM (SELECT
+            playerid,
+            teamid,
+            SUM(h) AS hits
+        FROM batting
+        GROUP BY playerid, teamid
+        HAVING SUM(h) >= 1000
+    ) AS player_team_hits
+    WHERE player_team_hits.playerid IN (
+            SELECT playerid
+            FROM (
+                SELECT playerid, teamid, SUM(h) AS hits
+                FROM batting
+                GROUP BY playerid, teamid
+                HAVING SUM(h) >= 1000
+            ) AS inner_player_team_hits
+            GROUP BY playerid
+            HAVING COUNT(teamid) >= 2
+        )
+ORDER BY playerid
+),
 
 teamnames AS (
     SELECT DISTINCT teamid, name
