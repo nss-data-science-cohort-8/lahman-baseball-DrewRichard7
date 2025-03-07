@@ -181,8 +181,25 @@ WHERE
     s.yearid = 2016
     AND gs >= 10
 GROUP BY name
-ORDER BY so_per_$
-LIMIT 1;
+ORDER BY so_per_$;
+
+
+-- USING HAVING SUM(gs) >= 10 instead of including in WHERE clause
+SELECT
+    namefirst || ' ' || namelast AS name,
+    SUM(salary) AS salary,
+    SUM(so) AS strikeouts,
+    SUM(gs) AS games_started,
+    ROUND((SUM(so::numeric) / SUM(salary::numeric)), 10) AS so_per_$
+FROM salaries AS s
+INNER JOIN pitching AS pt USING (playerid)
+INNER JOIN people AS p USING (playerid)
+WHERE
+    s.yearid = 2016
+GROUP BY name
+HAVING SUM(gs) >=10
+ORDER BY so_per_$;
+
 
 -- Zack Greinke was the least efficient at 0.0000048768 strikeouts per dollar
 -- 8. Find all players who have had at least 3000 career hits. Report those players' names, total number of hits, and the year they were inducted into the hall of fame (If they were not inducted into the hall of fame, put a null in that column.) Note that a player being inducted into the hall of fame is indicated by a 'Y' in the **inducted** column of the halloffame table.
